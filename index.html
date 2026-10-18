@@ -78,17 +78,15 @@
       position: relative;
     }
 
-    /* ========================================================
-       🚨 重點修改：碎石特效 Canvas 提升至絕對最上層，且不阻擋點擊
-       ======================================================== */
+    /* 碎石特效 Canvas 畫布（最上層設定） */
     #fx-canvas {
-      position: fixed; /* 改用 fixed 以免在部分瀏覽器跑位 */
+      position: absolute;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
-      pointer-events: none; /* 確保玩家依然可以點擊下方的按鈕 */
-      z-index: 9999;        /* 遠大於原本所有元素的 z-index，保證在最上層 */
+      pointer-events: none; /* 防止遮擋點擊事件 */
+      z-index: 9999;        /* 置於最頂層，讓碎石在最前方掉落 */
     }
 
     /* 滿版 Arcade 框架 */
@@ -107,7 +105,6 @@
       overflow: hidden;
       backdrop-filter: blur(4px);
       transition: border-color 0.8s ease;
-      z-index: 1; /* 設為低層級，確保 Canvas 特效在其上方 */
     }
 
     /* 震動效果動畫 (Screen Shake) */
@@ -135,13 +132,11 @@
       opacity: 0.7;
     }
 
-    /* 頂部資訊欄（放大標題與狀態） */
+    /* 頂部資訊欄 */
     .header {
       text-align: center;
       border-bottom: 3px dashed rgba(255,255,255,0.2);
       padding-bottom: 12px;
-      position: relative;
-      z-index: 5;
     }
 
     .game-title {
@@ -165,7 +160,7 @@
       margin: 0 auto;
     }
 
-    /* 主畫面與卡片（放大圖示與打字文字） */
+    /* 主畫面與卡片 */
     .stage-card {
       background: rgba(0, 0, 0, 0.5);
       border: 3px solid rgba(255, 255, 255, 0.15);
@@ -178,11 +173,9 @@
       justify-content: center;
       align-items: center;
       cursor: pointer;
-      position: relative;
-      z-index: 5;
     }
 
-    /* 超巨大動態像素圖示 */
+    /* 動態像素圖示 */
     .stage-icon {
       font-size: 8.5rem;
       margin-bottom: 15px;
@@ -247,16 +240,15 @@
     .grade-NORMAL { background-color: #747d8c; color: #fff; border: 3px solid #a4b0be; }
     .grade-BAD { background-color: #2f3542; color: #ff6b81; border: 2px solid #ff4757; }
 
-    /* 按鈕控制區（放大按鈕） */
+    /* 按鈕控制區 */
     .controls {
       display: flex;
       flex-direction: column;
       gap: 12px;
+      z-index: 20;
       max-width: 950px;
       width: 100%;
       margin: 0 auto;
-      position: relative;
-      z-index: 5;
     }
 
     .btn-group {
@@ -326,7 +318,7 @@
 </head>
 <body class="theme-forest">
 
-  <!-- 特效 Canvas（最上層，z-index: 9999） -->
+  <!-- 特效 Canvas（最頂層） -->
   <canvas id="fx-canvas"></canvas>
 
   <div class="game-container" id="game-container">
@@ -357,7 +349,7 @@
 
   <script>
     /* ==========================================
-       1. 遊戲故事資料結構 (包含 Theme 定義)
+       1. 遊戲故事資料結構
        ========================================== */
     const storyTree = {
       "START": {
@@ -501,38 +493,28 @@
     class Particle {
       constructor() {
         this.x = Math.random() * canvas.width;
-        this.y = -15; // 稍微在畫面上方一點生成，避免突兀
-        this.size = Math.random() * 8 + 4; // 稍微調大一點，更有存在感
-        this.speedY = Math.random() * 9 + 5; // 下落速度
+        this.y = -10;
+        this.size = Math.random() * 8 + 4; // 稍微加大碎石尺寸，更加明顯
+        this.speedY = Math.random() * 9 + 5;
         this.speedX = (Math.random() - 0.5) * 5;
-        // 碎石的顏色（灰色、暗紅、金黃，增加遺跡掉落感）
-        const colors = ['#696969', '#808080', '#a9a9a9', '#3e2723', '#d35400', '#f4c430'];
-        this.color = colors[Math.floor(Math.random() * colors.length)];
-        this.opacity = 1.0;
-        this.rotation = Math.random() * 360;
-        this.rotationSpeed = (Math.random() - 0.5) * 10;
+        this.color = Math.random() > 0.5 ? '#8b8a8e' : '#f4c430';
+        this.opacity = 1;
       }
       update() {
         this.y += this.speedY;
         this.x += this.speedX;
-        this.rotation += this.rotationSpeed;
-        this.opacity -= 0.012; // 掉落時漸隱
+        this.opacity -= 0.012;
       }
       draw() {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate((this.rotation * Math.PI) / 180);
         ctx.fillStyle = this.color;
         ctx.globalAlpha = Math.max(0, this.opacity);
-        // 繪製像素風格的正方形碎石
-        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
-        ctx.restore();
+        ctx.fillRect(this.x, this.y, this.size, this.size);
       }
     }
 
     function triggerDebrisEffect() {
-      // 產生 45 顆最上層的碎石粒子
-      for (let i = 0; i < 45; i++) {
+      // 產生 40 顆碎石粒子
+      for (let i = 0; i < 40; i++) {
         particles.push(new Particle());
       }
       // 觸發畫面震動
@@ -547,7 +529,7 @@
       for (let i = particles.length - 1; i >= 0; i--) {
         particles[i].update();
         particles[i].draw();
-        if (particles[i].opacity <= 0 || particles[i].y > canvas.height + 20) {
+        if (particles[i].opacity <= 0 || particles[i].y > canvas.height) {
           particles.splice(i, 1);
         }
       }
@@ -562,7 +544,7 @@
     let typewriterTimer = null;
     let fullText = "";
     let isTyping = false;
-    const typingSpeed = 35; // 每字 35 毫秒
+    const typingSpeed = 35;
 
     function typeWriter(text, index = 0) {
       const textElement = document.getElementById('story-text');
