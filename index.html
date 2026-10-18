@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>像素祕寶迷宮 - Pixel Treasure Hunt</title>
+  <!-- 導入 Google 復古像素字體 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+TC:wght@500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==========================================
+       1. 復古像素風基礎樣式 (CSS)
+       ========================================== */
+    :root {
+      --bg-color: #0f0f1b;
+      --card-bg: #1a1a2e;
+      --border-color: #f4c430;
+      --text-color: #e0e0e0;
+      --accent-color: #ff4757;
+      --success-color: #2ed573;
+      --highlight-color: #eccc68;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Noto Sans TC', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 15px;
+      background-image: 
+        radial-gradient(#222 10%, transparent 11%),
+        radial-gradient(#222 10%, transparent 11%);
+      background-size: 20px 20px;
+      background-position: 0 0, 10px 10px;
+    }
+
+    /* 模擬 Arcade 復古外框 */
+    .game-container {
+      width: 100%;
+      max-width: 520px;
+      background-color: var(--card-bg);
+      border: 4px solid var(--border-color);
+      box-shadow: 0 0 20px rgba(244, 196, 48, 0.2), inset 0 0 15px rgba(0,0,0,0.8);
+      border-radius: 8px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 掃描線效果 (Scanlines) */
+    .game-container::after {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      z-index: 10;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    /* 頂部標題與狀態 */
+    .header {
+      text-align: center;
+      border-bottom: 2px dashed #333;
+      padding-bottom: 15px;
+    }
+
+    .game-title {
+      font-family: 'Press Start 2P', 'Noto Sans TC', cursive;
+      font-size: 1.1rem;
+      color: var(--border-color);
+      text-shadow: 2px 2px #000;
+      margin-bottom: 8px;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: #888;
+      font-family: monospace;
+    }
+
+    /* 主畫面與插圖 */
+    .stage-card {
+      background: #0d0d18;
+      border: 2px solid #333;
+      border-radius: 4px;
+      padding: 20px;
+      text-align: center;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .stage-icon {
+      font-size: 4rem;
+      margin-bottom: 15px;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+      animation: bounce 2s infinite ease-in-out;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .story-text {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--text-color);
+      text-align: left;
+      width: 100%;
+    }
+
+    /* 結局等級標籤 */
+    .grade-badge {
+      display: inline-block;
+      font-family: 'Press Start 2P', cursive;
+      font-size: 1.2rem;
+      padding: 6px 12px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      text-shadow: 1px 1px #000;
+    }
+
+    .grade-SSR { background-color: #ff4757; color: #fff; border: 2px solid #ffa502; }
+    .grade-SR { background-color: #1e90ff; color: #fff; }
+    .grade-NORMAL { background-color: #747d8c; color: #fff; }
+    .grade-BAD { background-color: #2f3542; color: #ff6b81; border: 1px solid #ff4757; }
+
+    /* 按鈕控制區 */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20; /* 確保在掃描線上層 */
+    }
+
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn {
+      background-color: #2f3542;
+      color: #fff;
+      border: 2px solid var(--border-color);
+      padding: 14px 10px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      font-family: inherit;
+      cursor: pointer;
+      border-radius: 4px;
+      box-shadow: 0 4px 0 #000;
+      transition: all 0.1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      background-color: var(--border-color);
+      color: #000;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 0 #000;
+    }
+
+    .btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #000;
+    }
+
+    .btn-restart {
+      grid-column: span 2;
+      background-color: var(--success-color);
+      border-color: #2ed573;
+      color: #000;
+    }
+
+    .btn-restart:hover {
+      background-color: #26af5f;
+      color: #fff;
+    }
+
+    /* 移動端微調 */
+    @media (max-width: 480px) {
+      .btn-group {
+        grid-template-columns: 1fr;
+      }
+      .btn-restart {
+        grid-column: span 1;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    <!-- 頂部資訊欄 -->
+    <div class="header">
+      <h1 class="game-title">像素祕寶迷宮</h1>
+      <div class="status-bar">
+        <span id="stage-indicator">STAGE: 1 / 3</span>
+        <span id="path-history">PATH: START</span>
+      </div>
+    </div>
+
+    <!-- 中央故事與插圖區域 -->
+    <div class="stage-card">
+      <div id="grade-container"></div>
+      <div class="stage-icon" id="stage-icon">🗺️</div>
+      <p class="story-text" id="story-text">正在載入冒險資訊...</p>
+    </div>
+
+    <!-- 底部選項與操作區域 -->
+    <div class="controls">
+      <div class="btn-group" id="action-buttons">
+        <button class="btn" onclick="makeChoice('L')">⬅️ 向左走 [A]</button>
+        <button class="btn" onclick="makeChoice('R')">➡️ 向右走 [B]</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================
+       2. 故事文本與數據結構 (JavaScript)
+       ========================================== */
+    const storyTree = {
+      "START": {
+        stage: "1 / 3",
+        icon: "🗺️",
+        text: "你踏入傳說中的古代遺跡，空氣中彌漫著塵土與冒險的氣息。前面的通道分成了兩條岔路...",
+        leftBtn: "⬅️ 巨石通道",
+        rightBtn: "➡️ 水晶溶洞"
+      },
+      // --- 第一輪分歧 ---
+      "L": {
+        stage: "2 / 3",
+        icon: "🗿",
+        text: "【巨石通道】這條通道牆上刻滿古老符文。走著走著來到石門前，兩側各有一條狹窄走廊。",
+        leftBtn: "⬅️ 探查古井",
+        rightBtn: "➡️ 走向獸吼聲"
+      },
+      "R": {
+        stage: "2 / 3",
+        icon: "💎",
+        text: "【水晶溶洞】無數發光晶石照亮地下河流，景色絢麗卻暗藏殺機。懸崖邊有兩條路可跨越。",
+        leftBtn: "⬅️ 祭壇走廊",
+        rightBtn: "➡️ 瀑布吊橋"
+      },
+      // --- 第二輪分歧 ---
+      "LL": {
+        stage: "3 / 3",
+        icon: "🕳️",
+        text: "【古井深處】面前出現兩尊古老的守護者石像，各自伸出一隻手指向不同的出口。",
+        leftBtn: "⬅️ 太陽黃金門",
+        rightBtn: "➡️ 月亮青銅門"
+      },
+      "LR": {
+        stage: "3 / 3",
+        icon: "🦇",
+        text: "【獸吼狹道】盡頭居然是一隻沉睡的巨型岩石怪！巨獸身後有兩個通往深處的洞口。",
+        leftBtn: "⬅️ 鑽左側狹縫",
+        rightBtn: "➡️ 快速衝過右側"
+      },
+      "RL": {
+        stage: "3 / 3",
+        icon: "🔮",
+        text: "【祭壇走廊】祭壇中央擺著一本散發紫光的魔導書，左右兩側各有一個神秘機關按鈕。",
+        leftBtn: "⬅️ 紅寶石按鈕(力量)",
+        rightBtn: "➡️ 藍寶石按鈕(智慧)"
+      },
+      "RR": {
+        stage: "3 / 3",
+        icon: "🌉",
+        text: "【瀑布吊橋】吊橋搖搖欲墜，你順利抵達對岸。面前出現兩條濕滑的石階梯。",
+        leftBtn: "⬅️ 向上石階",
+        rightBtn: "➡️ 向下石階"
+      },
+
+      // --- 第三輪：8 大結局 ---
+      "LLL": {
+        isEnding: true,
+        grade: "SSR",
+        icon: "👑",
+        title: "失落的法老寶藏",
+        text: "門後堆滿了黃金與古代法老的皇冠！你成功帶走無數財寶，成為世上最富有、最傳奇的冒險家！"
+      },
+      "LLR": {
+        isEnding: true,
+        grade: "BAD",
+        icon: "⏳",
+        title: "時光詛咒",
+        text: "月亮石門觸發了古代時間陷阱！你的身體逐漸變成石頭，永遠成為了遺跡的一部分..."
+      },
+      "LRL": {
+        isEnding: true,
+        grade: "SR",
+        icon: "🐾",
+        title: "巨獸馴服者",
+        text: "你靈巧地鑽過狹縫，意外發現了巨獸幼崽並給予餵食。巨獸醒來後將你視為主人，護送你帶滿口袋寶石平安離開！"
+      },
+      "LRR": {
+        isEnding: true,
+        grade: "BAD",
+        icon: "🕳️",
+        title: "陷阱坑洞",
+        text: "你的腳步聲驚醒了巨獸！狂暴的巨獸一巴掌踩塌了地面，你落入無底深淵..."
+      },
+      "RLL": {
+        isEnding: true,
+        grade: "BAD",
+        icon: "💥",
+        title: "貪婪的代價",
+        text: "紅寶石按鈕引爆了遺跡的自爆機關！強烈的地震讓整個洞穴坍塌，你與寶藏一同被埋葬。"
+      },
+      "RLR": {
+        isEnding: true,
+        grade: "SSR",
+        icon: "🧙‍♂️",
+        title: "大賢者傳承",
+        text: "智慧按鈕開啟了法術試煉，你獲得了古代大賢者的畢生魔法傳承與無價的知識魔法書！"
+      },
+      "RRL": {
+        isEnding: true,
+        grade: "NORMAL",
+        icon: "🏛️",
+        title: "空無一物的密室",
+        text: "向上走進密室，裡面只有空箱子與一張寫著「有人先來過了」的紙條。雖然沒拿到寶藏，但你平安無事地離開了。"
+      },
+      "RRR": {
+        isEnding: true,
+        grade: "SR",
+        icon: "🧜‍♀️",
+        title: "人魚之歌與地底湖",
+        text: "向下的石階通往神秘的地底螢光湖，地底人魚贈予你一顆巨大的避水珍珠，賣出了無可估量的高價！"
+      }
+    };
+
+    /* ==========================================
+       3. 遊戲邏輯與控制 (JavaScript)
+       ========================================== */
+    let currentPath = "START";
+
+    // 渲染當前節點畫面
+    function renderNode() {
+      const node = storyTree[currentPath];
+
+      // 更新畫面文字與圖示
+      document.getElementById('stage-icon').textContent = node.icon;
+      document.getElementById('story-text').textContent = node.text;
+      
+      // 更新狀態列
+      if (node.isEnding) {
+        document.getElementById('stage-indicator').textContent = "STAGE: END";
+        document.getElementById('path-history').textContent = `PATH: ${formatPath(currentPath)}`;
+        
+        // 渲染結局專用 UI
+        document.getElementById('grade-container').innerHTML = 
+          `<span class="grade-badge grade-${node.grade}">${node.grade} - ${node.title}</span>`;
+        
+        document.getElementById('action-buttons').innerHTML = 
+          `<button class="btn btn-restart" onclick="restartGame()">🔄 重新開始冒險</button>`;
+      } else {
+        document.getElementById('stage-indicator').textContent = `STAGE: ${node.stage}`;
+        document.getElementById('path-history').textContent = `PATH: ${formatPath(currentPath)}`;
+        document.getElementById('grade-container').innerHTML = "";
+
+        // 渲染按鈕選項
+        document.getElementById('action-buttons').innerHTML = `
+          <button class="btn" onclick="makeChoice('L')">${node.leftBtn || "⬅️ 向左走"}</button>
+          <button class="btn" onclick="makeChoice('R')">${node.rightBtn || "➡️ 向右走"}</button>
+        `;
+      }
+    }
+
+    // 玩家選擇處理
+    function makeChoice(direction) {
+      if (currentPath === "START") {
+        currentPath = direction;
+      } else {
+        currentPath += direction;
+      }
+      renderNode();
+    }
+
+    // 重置遊戲
+    function restartGame() {
+      currentPath = "START";
+      renderNode();
+    }
+
+    // 格式化路徑文字 (例如: LRL -> ⬅️ ➡️ ⬅️)
+    function formatPath(path) {
+      if (path === "START") return "START";
+      return path.split('').map(char => char === 'L' ? '⬅️' : '➡️').join(' ');
+    }
+
+    // 初始化遊戲
+    renderNode();
+  </script>
+</body>
+</html>
